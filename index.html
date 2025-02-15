@@ -70,6 +70,7 @@
         <h1>Modals</h1>
         <button onclick="Telegram.WebApp.showAlert('Hello World!');">Launch Alert</button>
         <button onclick="showPopup();">Launch Popup</button>
+        <button onclick="getUserName();">Show UserName</button>
 
         <h1>Links</h1>
         <ul>
@@ -134,6 +135,14 @@
                 Telegram.WebApp.MainButton.show();
             }
         };
+
+        function getUserName() {
+            userInfo = Telegram.WebApp.initData;
+            if (userInfo) {
+                console.log("Userinfo: ", userInfo);
+            }
+        }
+
 
         function setViewportData() {
             var sizeEl = document.getElementById('viewport-params-size');
