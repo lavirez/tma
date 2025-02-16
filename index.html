@@ -1,177 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <title>Telegram Mini Apps Vanilla JS Sample App</title>
-    <style>
-        body {
-            --bg-color: var(--tg-theme-bg-color);
-            font: 12px/18px "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--tg-theme-text-color);
-            margin: 48px 24px;
-            padding: 0;
-            color-scheme: var(--tg-color-scheme);
-        }
-
-        a {
-            color: var(--tg-theme-link-color);
-        }
-        #viewport {
-            position: fixed;
-            left: 0;
-            right: 0;
-            top: 0;
-            height: var(--tg-viewport-stable-height, 100vh);
-            pointer-events: none;
-            transition: all .2s ease;
-        }
-        #viewport:after {
-            content: '';
-            display: block;
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            border-width: 4px;
-            border-style: solid;
-            border-image: linear-gradient(45deg, rgba(64, 224, 208, .5), rgba(173, 255, 47, .5)) 1;
-        }
-
-        #viewport-params-size,
-        #viewport-params-expand {
-            content: attr(text);
-            position: absolute;
-            display: inline-block;
-            background: var(--tg-theme-link-color, rgb(64, 224, 208));
-            right: 4px;
-            left: auto;
-            font-size: 8px;
-            padding: 4px;
-            vertical-align: top;
-        }
-        #viewport-params-size {
-            top: 4px;
-        }
-        #viewport-params-expand {
-            top: 30px;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <title>Telegram Login with Cognito</title>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1036.0.min.js"></script>
 </head>
-
 <body>
-    <main>
-        <div align="center">
-            <a href="https://ton.org/"><img width="48" src="./assets/tapps.png" alt="logo of telegram web apps"></a>
-        </div>
-        <h1>Modals</h1>
-        <button onclick="Telegram.WebApp.showAlert('Hello World!');">Launch Alert</button>
-        <button onclick="showPopup();">Launch Popup</button>
-        <button onclick="getUserName();">Show UserName</button>
+    <h1>Login with Telegram</h1>
 
-        <h1>Links</h1>
-        <ul>
-            <li>
-                <a href="javascript:Telegram.WebApp.openTelegramLink('https://t.me/trendingapps');">Open link within Telegram</a>
-            </li>
-            <li>
-                <a href="javascript:Telegram.WebApp.openLink('https://ton.org/');">Open link in external browser</a>
-            </li>
-            <li>
-                <a href="javascript:Telegram.WebApp.openLink('https://telegra.ph/api',{try_instant_view:true});">Open link inside Telegram webview</a>
-            </li>
-        </ul>
+    <!-- Telegram login widget -->
+    <script async src="https://telegram.org/js/telegram-widget.js?2" 
+            data-telegram-login="gamertag_app_bot" 
+            data-size="large" 
+            data-onauth="onTelegramAuth"></script>
 
-        <h1>Buttons</h1>
-        <button onclick="Telegram.WebApp.expand();">Expand Webview</button>
-        <button onclick="toggleMainButton();">Toggle Main Button</button>
-        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="gamertag_app_bot" data-size="medium" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
-<script type="text/javascript">
-  function onTelegramAuth(user) {
-    alert('Logged in as ' + user.first_name + ' ' + user.last_name + ' (' + user.id + (user.username ? ', @' + user.username : '') + ')');
-  }
-</script>
-    </main>
-    <div id="viewport"></div>
-    <div id="viewport-params-size"></div>
-    <div id="viewport-params-expand"></div>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
-        // Init TWA
-        Telegram.WebApp.ready();
-
-        // Event occurs whenever theme settings are changed in the user's Telegram app (including switching to night mode).
-        Telegram.WebApp.onEvent('themeChanged', function() {
-            document.documentElement.className = Telegram.WebApp.colorScheme;
+        AWS.config.region = 'eu-west-1';
+        AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+            IdentityPoolId: '' 
         });
+        const cognito = new AWS.CognitoIdentityServiceProvider();
 
-        // Show main button
-        Telegram.WebApp.MainButton.setParams({
-            text: 'Main Button'
-        });
-        Telegram.WebApp.MainButton.onClick(function () {
-            Telegram.WebApp.showAlert('Main Button was clicked')
-        });	
-        Telegram.WebApp.MainButton.show();
+        function onTelegramAuth(authData) {
+            console.log('Telegram Auth Data:', authData);
+            
+            // Verify the data and send to Cognito
+            verifyTelegramData(authData);
+        }
 
-        // Function to call showPopup API
-        function showPopup() {
-            Telegram.WebApp.showPopup({
-                title: 'Title',
-                message: 'Some message',
-                buttons: [
-                    {id: 'link', type: 'default', text: 'Open ton.org'},
-                    {type: 'cancel'},
+        function verifyTelegramData(authData) {
+            // Step 1: Validate the hash
+            const checkHash = authData.hash;
+            delete authData.hash;
+
+            // Sort the data
+            const dataCheckArr = Object.keys(authData)
+                .map(key => `${key}=${authData[key]}`)
+                .sort();
+            const dataCheckString = dataCheckArr.join("\n");
+
+            // Generate the secret key
+            const secretKey = crypto.createHash('sha256').update('YOUR_BOT_TOKEN').digest();
+            const hash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+            // Step 2: Verify the hash
+            if (hash !== checkHash) {
+                alert('Data is NOT from Telegram');
+                return;
+            }
+
+            // Step 3: Check if the data is outdated (valid for 1 day)
+            if (Math.floor(Date.now() / 1000) - authData.auth_date > 86400) {
+                alert('Data is outdated');
+                return;
+            }
+
+            // Step 4: Sign up or log the user in via Cognito
+            signUpCognito(authData);
+        }
+
+        function signUpCognito(authData) {
+            const params = {
+                ClientId: '33cu5n4jumvltaahn7lekhk04s',
+                Username: authData.id,
+                Password: 'TEMP_PASSWORD_' + Math.random().toString(36).substring(2), // Temporary password (needs to be changed)
+                UserAttributes: [
+                    {
+                        Name: 'given_name',
+                        Value: authData.first_name
+                    },
+                    {
+                        Name: 'family_name',
+                        Value: authData.last_name
+                    },
+                    {
+                        Name: 'email',
+                        Value: `${authData.id}@telegram.com` // Temporary email
+                    },
+                    {
+                        Name: 'telegramId',
+                        Value: authData.id
+                    }
                 ]
-            }, function(btn) {
-                if (btn === 'link') {
-                    Telegram.WebApp.openLink('https://ton.org/');
+            };
+
+            cognito.signUp(params, function (err, data) {
+                if (err) {
+                    console.log('Error signing up:', err);
+                    alert('Error: ' + err.message);
+                } else {
+                    console.log('User signed up:', data);
+                    alert('User signed up successfully!');
+                    // Optionally log the user in here by confirming the user and using a session
+                    confirmCognitoUser(authData.id);
                 }
             });
-        };
-
-        // Function to toggle main TWA button
-        function toggleMainButton() {
-            if (Telegram.WebApp.MainButton.isVisible) {
-                Telegram.WebApp.MainButton.hide();
-            } else {
-                Telegram.WebApp.MainButton.show();
-            }
-        };
-
-        function getUserName() {
-            userInfo = Telegram.WebApp.initData;
-            if (userInfo) {
-                console.log("Userinfo: ", userInfo);
-            }
         }
 
+        function confirmCognitoUser(username) {
+            const confirmParams = {
+                ClientId: '33cu5n4jumvltaahn7lekhk04s',
+                Username: username,
+                ConfirmationCode: '123456', // You can send the code via email or another method
+            };
 
-        function setViewportData() {
-            var sizeEl = document.getElementById('viewport-params-size');
-            sizeEl.innerText = 'width: ' + window.innerWidth + ' x ' + 
-                'height: ' + Telegram.WebApp.viewportStableHeight;
-
-            var expandEl = document.querySelector('#viewport-params-expand');
-            expandEl.innerText = 'Is Expanded: ' + (Telegram.WebApp.isExpanded ? 'true' : 'false');
+            cognito.confirmSignUp(confirmParams, function (err, data) {
+                if (err) {
+                    console.log('Error confirming user:', err);
+                    alert('Error confirming user: ' + err.message);
+                } else {
+                    console.log('User confirmed:', data);
+                }
+            });
         }
-
-        Telegram.WebApp.setHeaderColor('secondary_bg_color');
-
-        setViewportData();
-        Telegram.WebApp.onEvent('viewportChanged', setViewportData);
-
-        Telegram.WebApp.onEvent('themeChanged', function() {
-            document.body.setAttribute('style', '--bg-color:' + Telegram.WebApp.backgroundColor);
-        });
-
     </script>
-
-    <!-- Eruda is console for mobile browsers -->
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
 </body>
 </html>
