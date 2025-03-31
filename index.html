@@ -91,7 +91,6 @@
   </div>
 
   <script>
-
 /**
  * Telegram Login with AWS Cognito OIDC Integration
  * 
@@ -137,7 +136,7 @@ function initTelegramLoginWidget(elementId, onAuthCallback) {
   script.setAttribute('data-radius', '4');
   script.setAttribute('data-request-access', 'write');
   script.setAttribute('data-userpic', 'false');
-  script.setAttribute('data-auth-url', `${window.location.origin}/telegram-auth`);
+  script.setAttribute('data-auth-url', `https://o6q4egqemj.execute-api.me-central-1.amazonaws.com/telegram/telegram-auth`);
   script.async = true;
 
   // Append the script to the container
